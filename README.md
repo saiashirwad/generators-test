@@ -1,6 +1,7 @@
 # Bad parsers, don't use (except for fun)
 
 ```typescript
+
 const smolParser = Parser.gen(function* () {
 	const hs = yield* many(char("h"));
 	const ts = yield* many(char("t"));
@@ -27,9 +28,12 @@ const bigParser = Parser.gen(function* () {
 });
 
 const lol = bigParser.run("hhhtttvtexoport");
+//     ^   ParserResult<{ smol: { hs: string; ts: string; v: string }, texStatus: "texoport acquired" }>
+
 Either.match(lol, {
 	onRight: console.log,
 	onLeft: console.log,
 });
+
 
 ```

@@ -27,6 +27,8 @@ const bigParser = Parser.gen(function* () {
 });
 
 const lol = bigParser.run("hhhtttvtexoport");
+//     ^   ParserResult<{ smol: { hs: string; ts: string; v: string }, texStatus: "texoport acquired" }>
+
 Either.match(lol, {
 	onRight: console.log,
 	onLeft: console.log,
