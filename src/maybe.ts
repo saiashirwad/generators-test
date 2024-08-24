@@ -1,17 +1,9 @@
-class GenMaybe<K, A> {
-	constructor(readonly op: K) {}
+export class Maybe<T> {
+	public value: T | null;
 
-	*[Symbol.iterator](): Generator<GenMaybe<K, A>, K, any> {
-		return yield this;
+	constructor(value: T | null) {
+		this.value = value;
 	}
-}
-
-const adapter = (_: any) => {
-	return new GenMaybe(_);
-};
-
-class Maybe<T> {
-	constructor(private value: T | null) {}
 
 	static some<T>(value: T): Maybe<T> {
 		return new Maybe(value);
@@ -35,12 +27,16 @@ class Maybe<T> {
 		return fn(this.value);
 	}
 
-	gen<Yielded extends GenMaybe<any, any>, Returned>(
-		f: (i: {
-			<A>(_: Maybe<A>): GenMaybe<Maybe<A>, A>;
+	*[Symbol.iterator](): Generator<Maybe<T>, T, any> {
+		return yield this;
+	}
+
+	static gen<Yielded extends any, Returned>(
+		f: ($: {
+			<A>(_: Maybe<A>): Maybe<A>;
 		}) => Generator<Yielded, Returned, any>,
 	): Maybe<Returned> {
-		const iterator = f(adapter);
+		const iterator = f((_: any) => new Maybe(_));
 		const state = iterator.next();
 
 		function run(
@@ -51,7 +47,8 @@ class Maybe<T> {
 			if (state.done) {
 				return Maybe.some(state.value);
 			}
-			const val = state.value["op"];
+			// @ts-expect-error this is fine :)
+			const val = state.value["value"];
 			if (val instanceof Maybe && val.value == null) {
 				return Maybe.none<Returned>();
 			}
@@ -63,13 +60,3 @@ class Maybe<T> {
 		return run(state);
 	}
 }
-
-const something = Maybe.some(5);
-const result = something.gen(function* ($) {
-	const lol = yield* $(Maybe.some(5));
-	const lolol = yield* $(Maybe.some(6));
-	const result = lol + lolol;
-	return result;
-});
-
-console.log(result);
