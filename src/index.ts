@@ -7,7 +7,8 @@ const result = Maybe.gen(function* ($) {
 	if (result < 200) {
 		return "yaaas" as const;
 	}
-	return yield* $(Maybe.none());
+	return "asdlkfjas" as const;
 });
 
+console.log("alskdjf");
 console.log(result.value);

@@ -1,9 +1,5 @@
 export class Maybe<T> {
-	public value: T | null;
-
-	constructor(value: T | null) {
-		this.value = value;
-	}
+	constructor(public value: T | null) {}
 
 	static some<T>(value: T): Maybe<T> {
 		return new Maybe(value);
