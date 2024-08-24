@@ -314,19 +314,3 @@ export const optional = <T>(
 		}
 		return Either.right(result.right);
 	});
-
-// export const regExp = (exp: RegExp): Parser<string> =>
-// 	new Parser((input) => {
-// 		const idx = input.search(exp);
-// 		if (input.search(exp) === 0) {
-// 			const result = input.match(exp);
-// 			if (!result) {
-// 				return Either.left("oops");
-// 			}
-// 			const first = result[0]!;
-// 			const rest = input.slice(first.length);
-// 			return Either.right([first, rest]);
-// 		}
-// 		return Either.left("oops");
-// 	});
-//
