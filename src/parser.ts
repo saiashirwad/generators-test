@@ -118,9 +118,8 @@ export const char = matchString;
 export const alphabet: Parser<string> = new Parser(
 	(input) => {
 		const [first, ...rest] = input;
-		const expr = /^[a-zA-Z]$/;
 		if (/^[a-zA-Z]$/.test(first)) {
-			return Either.right([first, input.slice(1)]);
+			return Either.right([first, rest.join("")]);
 		}
 		return Either.left("Not alphabet");
 	},
@@ -129,7 +128,7 @@ export const alphabet: Parser<string> = new Parser(
 export const digit = new Parser((input) => {
 	const [first, ...rest] = input;
 	if (/^[0-9]$/.test(first)) {
-		return Either.right([first, input.slice(1)]);
+		return Either.right([first, rest.join("")]);
 	}
 	return Either.left("not a number");
 });
@@ -155,16 +154,19 @@ export const sepBy = <S, T>(
 				if (acc.length > 0) {
 					return Either.right([acc, rest]);
 				}
-				return Either.left("wtf");
+				return Either.right([acc, input]); // Return original input if no match
 			}
-			const [t, s] = result.right[0];
+			const [[t, s], newRest] = result.right;
 			acc.push(t);
-			rest = result.right[1];
+			if (s === undefined) {
+				return Either.right([acc, newRest]);
+			}
+			rest = newRest;
 		}
-
-		return Either.right([acc, rest]);
 	});
 };
+
+// FIX: the result is. why is there an escaped " just in world and not hello  [ "hello", ",\"world\"" ],
 
 export const betweenChars = <T>(
 	[start, end]: [string, string],
@@ -172,17 +174,17 @@ export const betweenChars = <T>(
 ): Parser<T> =>
 	new Parser((input) =>
 		new Parser((input_) => {
-			if (!input.startsWith(start)) {
+			if (!input_.startsWith(start)) {
 				return Either.left(
 					`Not surrounded by ${start} ${end}`,
 				);
 			}
-			if (input.at(-1) !== end) {
+			if (input_.at(-1) !== end) {
 				return Either.left(
 					`Not surrounded by ${start} and ${end}`,
 				);
 			}
-			return Either.right([undefined, input.slice(1, -1)]);
+			return Either.right([undefined, input_.slice(1, -1)]);
 		})
 			.zip(parser)
 			.map(([_, t]) => t)
@@ -202,37 +204,35 @@ const many_ =
 						return Either.right([acc, rest]);
 					} else {
 						return Either.left(
-							`many_(${count}) expected, but only ${acc.length} found`,
+							`Expected at least ${count} occurrences, but only found ${acc.length}`,
 						);
 					}
 				}
 				rest = getRest(result);
 				acc.push(result.right[0]);
 			}
-			return Either.right([acc, rest]);
 		});
 
 const skipMany_ =
 	<T>(count: number) =>
 	(parser: Parser<T>): Parser<undefined> =>
 		new Parser((input) => {
-			const acc: T[] = [];
+			let matchCount = 0;
 			let rest = input;
 			while (true) {
 				const result = parser.run(rest);
 				if (Either.isLeft(result)) {
-					if (acc.length >= count) {
+					if (matchCount >= count) {
 						return Either.right([undefined, rest]);
 					} else {
 						return Either.left(
-							`skipMany_(${count}) expected, but only ${acc.length} found`,
+							`Expected to skip at least ${count} occurrences, but only skipped ${matchCount}`,
 						);
 					}
 				}
+				matchCount++;
 				rest = getRest(result);
-				acc.push(result.right[0]);
 			}
-			return Either.right([undefined, rest]);
 		});
 
 export const skipUntil = <T>(
@@ -242,15 +242,16 @@ export const skipUntil = <T>(
 		let rest = input;
 		while (true) {
 			if (rest.length === 0) {
-				return Either.left("oops");
+				return Either.left(
+					"Reached end of input without finding a match",
+				);
 			}
-			const result = parser.run(input);
+			const result = parser.run(rest);
 			if (Either.isRight(result)) {
 				return Either.right([undefined, rest]);
 			}
 			rest = rest.slice(1);
 		}
-		return Either.left("wtf");
 	});
 
 export const many = <T>(parser: Parser<T>) =>
@@ -280,18 +281,23 @@ export const trimSpaces = <T>(
 	parser: Parser<T>,
 ): Parser<T> =>
 	new Parser((input) => {
-		return new Parser((input) => {
-			const result = input.trim();
-			return Either.right([undefined, result]);
-		})
-			.zip(parser)
-			.map(([_, t]) => t)
-			.run(input);
+		const trimmed = input.trim();
+		const result = parser.run(trimmed);
+		if (Either.isLeft(result)) {
+			return result;
+		}
+		const [value, rest] = result.right;
+		return Either.right([
+			value,
+			input.slice(
+				input.length - (trimmed.length - rest.length),
+			),
+		]);
 	});
 
-export const choice = (
-	parsers: Array<Parser<unknown>>,
-): Parser<unknown> =>
+export const choice = <T>(
+	parsers: Array<Parser<T>>,
+): Parser<T> =>
 	new Parser((input) => {
 		for (const parser of parsers) {
 			const result = parser.run(input);
@@ -300,7 +306,7 @@ export const choice = (
 			}
 		}
 		return Either.left(
-			"None of the choices could be satisfied",
+			`None of the ${parsers.length} choices could be satisfied`,
 		);
 	});
 

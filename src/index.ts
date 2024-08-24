@@ -1,5 +1,8 @@
-import { Either } from "effect";
-import { Parser, char, many } from "./parser";
+import { Parser, char, choice, many } from "./parser";
+
+const lol = many(choice([char("a"), char("b"), char("c")]));
+const rip = lol.run("abc");
+console.log(rip);
 
 const smolParser = Parser.gen(function* () {
 	const hs = yield* many(char("h"));
@@ -24,12 +27,4 @@ const bigParser = Parser.gen(function* () {
 		smol,
 		texStatus,
 	};
-});
-
-const lol = bigParser.run("hhhtttvtexoport");
-//     ^   ParserResult<{ smol: { hs: string[]; ts: string[]; v: string }, texStatus: "texoport acquired" }>
-
-Either.match(lol, {
-	onRight: console.log,
-	onLeft: console.log,
 });
