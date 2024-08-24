@@ -31,7 +31,7 @@ export class Maybe<T> {
 		return yield this;
 	}
 
-	static gen<Yielded extends any, Returned>(
+	static gen<Yielded, Returned>(
 		f: ($: {
 			<A>(_: Maybe<A>): Maybe<A>;
 		}) => Generator<Yielded, Returned, any>,
