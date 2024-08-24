@@ -1,4 +1,5 @@
-// has mistakes
+// heckin incomplete heck heck heck
+
 type EitherValue<L, R> =
 	| {
 			tag: "left";
