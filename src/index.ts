@@ -1,30 +1,53 @@
-import { Parser, char, choice, many } from "./parser";
+import { as } from "effect/Option";
+import {
+	char,
+	choice,
+	many,
+	string_,
+	number,
+	Parser,
+	skipSpaces,
+	string,
+	word,
+	digit,
+	void_,
+} from "./parser";
+import { Either } from "effect";
 
-const lol = many(choice([char("a"), char("b"), char("c")]));
-const rip = lol.run("abc");
-console.log(rip);
+type LetExpression = {
+	name: string;
+	value: number;
+};
 
-const smolParser = Parser.gen(function* () {
-	const hs = yield* many(char("h"));
-	const ts = yield* many(char("t"));
-	const v = yield* char("v");
+const parseLet = string_("let");
+const parseConst = string_("const");
 
-	return { hs, ts, v };
-});
+const parseBoth_ = choice([parseLet, parseConst]).flatMap(
+	(x) => {
+		if (x === "let") {
+			return parseLet
+				.zipRight(parseConst)
+				.map(() => ({ let: true }));
+		}
+		return void_;
+	},
+);
 
-const parseTexoport = Parser.gen(function* () {
-	for (const i of "texoport") {
-		yield* char(i);
+const parseBoth = Parser.gen(function* () {
+	const letOrConst = yield* choice([parseLet, parseConst]);
+	if (letOrConst === "let") {
+		yield* skipSpaces;
+		yield* parseConst;
+
+		return { let: true };
 	}
-	return "texoport acquired" as const;
+
+	return { let: false };
 });
 
-const bigParser = Parser.gen(function* () {
-	const smol = yield* smolParser;
-	const texStatus = yield* parseTexoport;
+// const parseBothDo = Parser.Do()
+// 	.bind("letOrConst", () => choice([parseLet, parseConst]))
+// 	.bind("what", () => string("what"));
 
-	return {
-		smol,
-		texStatus,
-	};
-});
+const result = parseBoth_.run("let   const");
+console.log(result);

@@ -22,11 +22,34 @@ export class Parser<A> {
 
 	flatMap<B>(f: (a: A) => Parser<B>): Parser<B> {
 		return new Parser((input) => {
-			return Either.match(this.run(input), {
+			const result = this.run(input);
+			return Either.match(result, {
 				onRight: ([a, rest]) => f(a).run(rest),
 				onLeft: (e) => Either.left(e),
 			});
 		});
+	}
+
+	zipRight<B>(parserB: Parser<B>): Parser<B> {
+		return new Parser((input) =>
+			Either.match(this.run(input), {
+				onRight: ([a, rest]) => parserB.run(rest),
+				onLeft: (e) => Either.left(e),
+			}),
+		);
+	}
+
+	zipLeft<B>(parserB: Parser<B>): Parser<A> {
+		return new Parser((input) =>
+			Either.match(this.run(input), {
+				onRight: ([a, rest]) =>
+					Either.match(parserB.run(rest), {
+						onLeft: () => Either.right([a, rest]),
+						onRight: () => Either.right([a, rest]),
+					}),
+				onLeft: (e) => Either.left(e),
+			}),
+		);
 	}
 
 	static pure = <A>(a: A): Parser<A> => {
@@ -93,9 +116,9 @@ export class Parser<A> {
 
 			const value = state.value;
 			if (value instanceof Parser) {
-				return value.flatMap((result) =>
-					run(iterator.next(result)),
-				);
+				return value.flatMap((result) => {
+					return run(iterator.next(result));
+				});
 			} else {
 				throw new Error("Expected a Parser");
 			}
@@ -105,7 +128,7 @@ export class Parser<A> {
 	}
 }
 
-export const matchString = (str: string): Parser<string> =>
+export const string = (str: string): Parser<string> =>
 	new Parser((input) => {
 		if (input.startsWith(str)) {
 			return Either.right([str, input.slice(str.length)]);
@@ -113,7 +136,20 @@ export const matchString = (str: string): Parser<string> =>
 		return Either.left(`${str} not matched!`);
 	});
 
-export const char = matchString;
+export const string_ = <const T extends string>(
+	str: T,
+): Parser<T> =>
+	new Parser((input) => {
+		if (input.startsWith(str)) {
+			return Either.right([
+				str as T,
+				input.slice(str.length),
+			]);
+		}
+		return Either.left(`${str} not matched!`);
+	});
+
+export const char = string;
 
 export const alphabet: Parser<string> = new Parser(
 	(input) => {
@@ -122,6 +158,12 @@ export const alphabet: Parser<string> = new Parser(
 			return Either.right([first, rest.join("")]);
 		}
 		return Either.left("Not alphabet");
+	},
+);
+
+export const log: Parser<undefined> = new Parser(
+	(input) => {
+		return Either.right([undefined, input]);
 	},
 );
 
@@ -166,8 +208,6 @@ export const sepBy = <S, T>(
 	});
 };
 
-// FIX: the result is. why is there an escaped " just in world and not hello  [ "hello", ",\"world\"" ],
-
 export const betweenChars = <T>(
 	[start, end]: [string, string],
 	parser: Parser<T>,
@@ -207,6 +247,8 @@ const many_ =
 							`Expected at least ${count} occurrences, but only found ${acc.length}`,
 						);
 					}
+				} else {
+					const resValue = result.right[0];
 				}
 				rest = getRest(result);
 				acc.push(result.right[0]);
@@ -238,21 +280,9 @@ const skipMany_ =
 export const skipUntil = <T>(
 	parser: Parser<T>,
 ): Parser<undefined> =>
-	new Parser((input) => {
-		let rest = input;
-		while (true) {
-			if (rest.length === 0) {
-				return Either.left(
-					"Reached end of input without finding a match",
-				);
-			}
-			const result = parser.run(rest);
-			if (Either.isRight(result)) {
-				return Either.right([undefined, rest]);
-			}
-			rest = rest.slice(1);
-		}
-	});
+	many(choice([parser.map(() => undefined), char("")])).map(
+		() => undefined,
+	);
 
 export const many = <T>(parser: Parser<T>) =>
 	many_<T>(0)(parser);
@@ -270,12 +300,9 @@ export const skipManyN = <T>(
 	n: number,
 ) => skipMany_<T>(n)(parser);
 
-export const newLine = matchString("\n");
+export const newLine = string("\n");
 
-export const skipSpaces = <T>(parser: Parser<T>) =>
-	skipMany(matchString(" "))
-		.zip(parser)
-		.map(([_, t]) => t);
+export const skipSpaces = skipMany(char(" "));
 
 export const trimSpaces = <T>(
 	parser: Parser<T>,
@@ -320,3 +347,13 @@ export const optional = <T>(
 		}
 		return Either.right(result.right);
 	});
+
+export const word = many1(alphabet).map((x) => x.join(""));
+
+export const number = many(digit)
+	.map((x) => x.join(""))
+	.map(Number);
+
+export const void_ = new Parser((x) =>
+	Either.right([{ let: false }, x]),
+);
