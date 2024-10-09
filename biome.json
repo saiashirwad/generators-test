@@ -9,7 +9,7 @@
 			"recommended": false
 		}
 	},
-  "formatter": {
-    "lineWidth": 60
-  }
+	"formatter": {
+		"lineWidth": 60
+	}
 }
