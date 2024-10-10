@@ -1,17 +1,25 @@
 import { Either } from "effect";
-import { string } from "./combinators";
+import { char, string } from "./combinators";
 
-const something = string("hi").map((x) => ({ x }));
-const result = something.run({
-	input: "ithereasdlkjf laksjdlfakj sldkfja lksdjf",
+const ch = char("i");
+// const something = string("hi").map((x) => ({ x }));
+// const result = something.run({
+// 	input: "ithereasdlkjf laksjdlfakj sldkfja lksdjf",
+// 	pos: { offset: 0, line: 0, column: 0 },
+// });
+
+// if (Either.isLeft(result)) {
+// 	console.log(result.left);
+// } else {
+// 	console.log(result.right);
+// }
+
+const result = ch.run({
+	input: "hgsdf",
 	pos: { offset: 0, line: 0, column: 0 },
 });
 
-if (Either.isLeft(result)) {
-	console.log(result.left);
-} else {
-	console.log(result.right);
-}
+console.log(result);
 
 // // import {
 // // 	betweenChars,

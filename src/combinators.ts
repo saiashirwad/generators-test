@@ -6,26 +6,40 @@ export function string(str: string): Parser<string> {
 			return Parser.succeed(str, state, str);
 		}
 
-		return Parser.error(
+		const errorMessage =
 			`Expected ${str} at index ${state.pos.offset}, ` +
-				`but found ${state.input.slice(
-					state.pos.offset,
-					state.pos.offset + 10,
-				)}...`,
-			[str],
-			state.pos,
-		);
+			`but found ${state.input.slice(
+				state.pos.offset,
+				state.pos.offset + 10,
+			)}...`;
+
+		return Parser.error(errorMessage, [str], state.pos);
 	});
 }
 
-// export function char(ch: string): Parser<string> {
-// 	return new Parser((state) => {
-// 		const { input, pos } = state;
-// 		if (ch.length !== 1) {
-// 			return Either.left(ParserError());
-// 		}
-// 	});
-// }
+export function char(ch: string): Parser<string> {
+	return new Parser((state) => {
+		if (ch.length !== 1) {
+			return Parser.error(
+				"char parser expects a single character",
+				[ch],
+				state.pos,
+			);
+		}
+		if (state.input[0] === ch) {
+			return Parser.succeed(ch, state, ch);
+		}
+
+		const errorMessage =
+			`Expected ${ch} at index ${state.pos.offset}, ` +
+			`but found ${state.input.slice(
+				state.pos.offset,
+				state.pos.offset + 10,
+			)}...`;
+
+		return Parser.error(errorMessage, [ch], state.pos);
+	});
+}
 
 // export function char(ch: string): Parser<string> {
 // 	return new Parser((input) => {
