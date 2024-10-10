@@ -12,6 +12,8 @@ export type ParserState = {
 	pos: SourcePosition;
 };
 
+type ParserOptions = { name?: string };
+
 export class ParserError {
 	constructor(
 		public message: string,
@@ -30,6 +32,7 @@ export class Parser<Result> {
 		private _run: (
 			state: ParserState,
 		) => ParserResult<Result>,
+		public options?: ParserOptions,
 	) {}
 
 	static succeed<T>(
@@ -76,28 +79,28 @@ export class Parser<Result> {
 		});
 	}
 
-	transform<B>(
-		f: (
-			value: Result,
-			state: ParserState,
-		) => [B, ParserState],
-	): Parser<B> {
-		return new Parser<B>((state) => {
-			return Either.match(this._run(state), {
-				onRight: ([value, newState]) => {
-					const [newValue, transformedState] = f(
-						value,
-						newState,
-					);
-					return Either.right([
-						newValue,
-						updateState(newState, transformedState),
-					] as const);
-				},
-				onLeft: Either.left,
-			});
-		});
-	}
+	// transform<B>(
+	// 	f: (
+	// 		value: Result,
+	// 		state: ParserState,
+	// 	) => [B, ParserState],
+	// ): Parser<B> {
+	// 	return new Parser<B>((state) => {
+	// 		return Either.match(this._run(state), {
+	// 			onRight: ([value, newState]) => {
+	// 				const [newValue, transformedState] = f(
+	// 					value,
+	// 					newState,
+	// 				);
+	// 				return Either.right([
+	// 					newValue,
+	// 					updateState(newState, transformedState),
+	// 				] as const);
+	// 			},
+	// 			onLeft: Either.left,
+	// 		});
+	// 	});
+	// }
 
 	flatMap<B>(f: (a: Result) => Parser<B>): Parser<B> {
 		return new Parser<B>((state) => {
@@ -204,16 +207,6 @@ export class Parser<Result> {
 		}
 
 		return run(iterator.next());
-		// try {
-		// 	return run(iterator.next());
-		// } catch (error) {
-		// 	console.log("hi");
-		// 	//  return Parser.error(
-		// 	//   error instanceof Error ? error.message : String(error),
-		// 	//   [],
-		// 	//   state.pos
-		// 	// );
-		// }
 	}
 }
 
@@ -276,9 +269,3 @@ export function consumeString(
 		pos: newPos,
 	};
 }
-
-// export function fail(message: string, expected: string[]) {
-// 	return new Parser((state) => {
-// 		return Parser.error(message, expected, state.pos);
-// 	});
-// }
