@@ -1,15 +1,19 @@
-import { char } from "./combinators";
-import { Parser } from "./parser";
+import { char, sepBy, string } from "./combinators";
 
-const something = Parser.gen(function* () {
-	const h = yield* char("h");
-	const i = yield* char("i");
+const something = sepBy(char(","), string("hi"));
+const result = something.run("i,hi,hi,hi,asdf");
 
-	return { h, i };
-});
-
-const result = something.run("there");
 console.log(result);
+
+// const something = Parser.gen(function* () {
+// 	const h = yield* char("h");
+// 	const i = yield* char("i");
+
+// 	return { h, i };
+// });
+
+// const result = something.run("there");
+// console.log(result);
 
 // const ch = char("i");
 // // const something = string("hi").map((x) => ({ x }));
@@ -40,23 +44,23 @@ console.log(result);
 // // // } from "./combinators";
 // // // import { Parser } from "./parser";
 
-// // const stringParser = betweenChars(
-// // 	['"', '"'],
-// // 	many(
-// // 		choice([
-// // 			char("\\")
-// // 				.zip(char('"'))
-// // 				.map(() => '"'),
-// // 			new Parser((input) => {
-// // 				const char = input[0];
-// // 				if (char && char !== '"' && char !== "\\") {
-// // 					return Either.right([char, input.slice(1)]);
-// // 				}
-// // 				return Either.left("Invalid character in string");
-// // 			}),
-// // 		]),
-// // 	).map((chars) => chars.join("")),
-// // );
+// const stringParser = betweenChars(
+// 	['"', '"'],
+// 	many(
+// 		choice([
+// 			char("\\")
+// 				.zip(char('"'))
+// 				.map(() => '"'),
+// 			new Parser((input) => {
+// 				const char = input[0];
+// 				if (char && char !== '"' && char !== "\\") {
+// 					return Either.right([char, input.slice(1)]);
+// 				}
+// 				return Either.left("Invalid character in string");
+// 			}),
+// 		]),
+// 	).map((chars) => chars.join("")),
+// );
 
 // // // const stringParser2 = Parser.gen(function* ($) {
 // // // 	yield* char('"');

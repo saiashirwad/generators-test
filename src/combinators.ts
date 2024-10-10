@@ -1,3 +1,4 @@
+import { Either } from "effect";
 import { Parser } from "./parser";
 
 export function string(str: string): Parser<string> {
@@ -30,9 +31,7 @@ export function char(ch: string): Parser<string> {
 			return Parser.succeed(ch, state, ch);
 		}
 
-		const errorMessage =
-			`Expected ${ch} at index ${state.pos.offset}, ` +
-			`but found ${state.input.at(0)}...`;
+		const errorMessage = `Expected ${ch} but found ${state.input.at(0)}.`;
 
 		return Parser.error(errorMessage, [ch], state.pos);
 	});
@@ -75,6 +74,61 @@ export const digit = new Parser((state) => {
 		state.pos,
 	);
 });
+
+export function sepBy<S, T>(
+	sepParser: Parser<S>,
+	parser: Parser<T>,
+) {
+	return Parser.gen(function* () {
+		const acc: Array<T> = [];
+		while (true) {
+			const result = yield* optional(parser);
+			if (!result) {
+				if (acc.length > 0) {
+					return acc;
+				}
+				return undefined;
+			}
+			yield* optional(sepParser);
+			acc.push(result);
+		}
+	});
+	// .flatMap((x) => {
+	// 	if (x === undefined) {
+	// 		return Parser.error(
+	// 			"Expected separator",
+	// 			[],
+	// 			state.pos,
+	// 		);
+	// 	}
+	// });
+
+	// return new Parser((input) => {
+	// 	const acc: Array<T> = [];
+	// 	let rest = input;
+	// 	while (true) {
+	// 		// const result = parser
+	// 		// 	.zip(
+	// 		// 		shouldTrimSpaces
+	// 		// 			? trimSpaces(optional(sepParser))
+	// 		// 			: optional(sepParser),
+	// 		// 	)
+	// 		// 	.run(rest);
+	// 		// if (Either.isLeft(result)) {
+	// 		// 	if (acc.length > 0) {
+	// 		// 		return Either.right([acc, rest]);
+	// 		// 	}
+	// 		// 	return Either.right([acc, input]); // Return original input if no match
+	// 		// }
+	// 		// const [[t, s], newRest] = result.right;
+	// 		// acc.push(t);
+	// 		// if (s === undefined) {
+	// 		// 	return Either.right([acc, newRest]);
+	// 		// }
+	// 		// rest = newRest;
+	// 	}
+	// });
+}
 
 // export const sepBy = <S, T>(
 // 	sepParser: Parser<S>,
@@ -220,6 +274,31 @@ export const digit = new Parser((state) => {
 // 		.zip(parser)
 // 		.map(([_, t]) => t);
 
+export function skipSpaces(): Parser<undefined> {
+	return new Parser((state) => {
+		const trimmedInput = state.input.trim();
+		return Parser.succeed(undefined, state, trimmedInput);
+	});
+}
+
+// export function trimSpaces<T>(parser: Parser<T>) {
+// 	return new Parser((state) => {
+// 		const trimmedInput = state.input.trim();
+// 		const result = parser.run(trimmedInput);
+// 		if (Either.isLeft(result)) {
+// 			// return Parser.succeed(result, state, result.left.);
+// 		}
+// 		// if (Either.isLeft(result)) {
+// 		// 	return result;
+// 		// }
+// 		// const [value, rest] = result.right;
+// 		// return Either.right([
+// 		// 	value,
+// 		// 	state.input.slice(trimmedInput.length - rest.length),
+// 		// ]);
+// 	});
+// }
+
 // export const trimSpaces = <T>(
 // 	parser: Parser<T>,
 // ): Parser<T> =>
@@ -252,6 +331,18 @@ export const digit = new Parser((state) => {
 // 			`None of the ${parsers.length} choices could be satisfied`,
 // 		);
 // 	});
+
+export function optional<T>(
+	parser: Parser<T>,
+): Parser<T | undefined> {
+	return new Parser((state) => {
+		const result = parser.run(state.input);
+		if (Either.isLeft(result)) {
+			return Parser.succeed(undefined, state);
+		}
+		return result;
+	});
+}
 
 // export const optional = <T>(
 // 	parser: Parser<T>,

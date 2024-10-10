@@ -35,7 +35,7 @@ export class Parser<Result> {
 	static succeed<T>(
 		value: T,
 		state: ParserState,
-		consumed: string,
+		consumed?: string,
 	): ParserResult<T> {
 		return Either.right([
 			value,
@@ -248,12 +248,12 @@ export function updateState(
 
 export function consumeString(
 	state: ParserState,
-	consumed: string,
+	consumed?: string,
 ): ParserState {
-	const newPos = updatePosition(state.pos, consumed);
+	const newPos = updatePosition(state.pos, consumed ?? "");
 
 	return {
-		input: state.input.slice(consumed.length),
+		input: state.input.slice(consumed?.length ?? 0),
 		pos: newPos,
 	};
 }
