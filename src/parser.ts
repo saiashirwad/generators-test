@@ -1,26 +1,102 @@
 import { Either } from "effect";
+// import { Either } from "./either";
 import { type Prettify } from "./utils";
 
-export type ParserResult<T> = Either.Either<
-	[T, string],
-	string
+export type SourcePosition = {
+	line: number;
+	column: number;
+	offset: number;
+};
+
+export type ParserState<T = unknown> = {
+	input: string;
+	pos: SourcePosition;
+	state: T;
+};
+
+export type ParserError = {
+	message: string;
+	expected: string[];
+	pos: SourcePosition;
+};
+
+export type ParserResult<T, S = unknown> = Either.Either<
+	[T, ParserState<S>],
+	ParserError
 >;
 
-export class Parser<A> {
+export function initialState<State = unknown>(
+	input: string,
+	state: State,
+): ParserState {
+	return {
+		input,
+		pos: { line: 1, column: 1, offset: 0 },
+		state,
+	};
+}
+
+export function updatePosition(
+	pos: SourcePosition,
+	consumed: string,
+): SourcePosition {
+	let { line, column, offset } = pos;
+	for (const char of consumed) {
+		if (char === "\n") {
+			line++;
+			column = 1;
+		} else {
+			column++;
+		}
+		offset++;
+	}
+	return { line, column, offset };
+}
+
+export function updateState<State>(
+	oldState: ParserState<State>,
+	newState: ParserState<State>,
+): ParserState<State> {
+	const consumed = oldState.input.slice(
+		0,
+		oldState.input.length - newState.input.length,
+	);
+	return {
+		...oldState,
+		input: oldState.input.slice(consumed.length),
+		pos: updatePosition(oldState.pos, consumed),
+	};
+}
+
+export class Parser<Result, State = unknown> {
 	constructor(
-		public run: (input: string) => ParserResult<A>,
+		public run: (
+			state: ParserState<State>,
+		) => ParserResult<Result, State>,
 	) {}
 
-	map<B>(f: (a: A) => B): Parser<B> {
-		return new Parser((input) =>
-			Either.match(this.run(input), {
-				onRight: ([a, rest]) => Either.right([f(a), rest]),
-				onLeft: (e) => Either.left(e),
-			}),
-		);
+	map<B>(
+		f: (a: ParserState<State>) => {
+			value: B;
+			state: ParserState<State>;
+		},
+	): Parser<B, State> {
+		return new Parser<B, State>((state) => {
+			return Either.match(this.run(state), {
+				onRight: (a) => {
+					const [, state] = a;
+					const result = f(state);
+					return Either.right([
+						result.value,
+						updateState(state, result.state),
+					] as const);
+				},
+				onLeft: Either.left,
+			});
+		});
 	}
 
-	flatMap<B>(f: (a: A) => Parser<B>): Parser<B> {
+	flatMap<B>(f: (a: Result) => Parser<B>): Parser<B> {
 		return new Parser((input) => {
 			return Either.match(this.run(input), {
 				onRight: ([a, rest]) => f(a).run(rest),
@@ -37,7 +113,7 @@ export class Parser<A> {
 		return Parser.pure({});
 	};
 
-	zip<B>(parserB: Parser<B>): Parser<readonly [A, B]> {
+	zip<B>(parserB: Parser<B>): Parser<readonly [Result, B]> {
 		return new Parser((input) =>
 			Either.match(this.run(input), {
 				onRight: ([a, rest]) =>
@@ -53,8 +129,8 @@ export class Parser<A> {
 
 	bind<K extends string, B>(
 		k: K,
-		other: Parser<B> | ((a: A) => Parser<B>),
-	): Parser<Prettify<A & { [k in K]: B }>> {
+		other: Parser<B> | ((a: Result) => Parser<B>),
+	): Parser<Prettify<Result & { [k in K]: B }>> {
 		return this.flatMap((a) => {
 			const parser =
 				other instanceof Parser ? other : other(a);
@@ -68,7 +144,11 @@ export class Parser<A> {
 		});
 	}
 
-	*[Symbol.iterator](): Generator<Parser<A>, A, any> {
+	*[Symbol.iterator](): Generator<
+		Parser<Result>,
+		Result,
+		any
+	> {
 		return yield this;
 	}
 

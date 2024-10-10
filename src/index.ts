@@ -1,5 +1,10 @@
 import { Either } from "effect";
-import { char } from "./combinators";
+import {
+	betweenChars,
+	char,
+	choice,
+	many,
+} from "./combinators";
 
 const sParser = char("sasdf");
 const result = sParser.run("sserf");
@@ -15,23 +20,23 @@ console.log(result);
 // } from "./combinators";
 // import { Parser } from "./parser";
 
-// const stringParser = betweenChars(
-// 	['"', '"'],
-// 	many(
-// 		choice([
-// 			char("\\")
-// 				.zip(char('"'))
-// 				.map(() => '"'),
-// 			new Parser((input) => {
-// 				const char = input[0];
-// 				if (char && char !== '"' && char !== "\\") {
-// 					return Either.right([char, input.slice(1)]);
-// 				}
-// 				return Either.left("Invalid character in string");
-// 			}),
-// 		]),
-// 	).map((chars) => chars.join("")),
-// );
+const stringParser = betweenChars(
+	['"', '"'],
+	many(
+		choice([
+			char("\\")
+				.zip(char('"'))
+				.map(() => '"'),
+			new Parser((input) => {
+				const char = input[0];
+				if (char && char !== '"' && char !== "\\") {
+					return Either.right([char, input.slice(1)]);
+				}
+				return Either.left("Invalid character in string");
+			}),
+		]),
+	).map((chars) => chars.join("")),
+);
 
 // const stringParser2 = Parser.gen(function* ($) {
 // 	yield* char('"');
