@@ -1,62 +1,52 @@
-import { Either } from "effect";
-import { char, string } from "./combinators";
+import { char } from "./combinators";
+import { Parser } from "./parser";
 
-const ch = char("i");
-// const something = string("hi").map((x) => ({ x }));
-// const result = something.run({
-// 	input: "ithereasdlkjf laksjdlfakj sldkfja lksdjf",
+const something = Parser.gen(function* () {
+	const h = yield* char("h");
+	const i = yield* char("i");
+
+	return { h, i };
+});
+
+const result = something.run("there");
+console.log(result);
+
+// const ch = char("i");
+// // const something = string("hi").map((x) => ({ x }));
+// // const result = something.run({
+// // 	input: "ithereasdlkjf laksjdlfakj sldkfja lksdjf",
+// // 	pos: { offset: 0, line: 0, column: 0 },
+// // });
+
+// // if (Either.isLeft(result)) {
+// // 	console.log(result.left);
+// // } else {
+// // 	console.log(result.right);
+// // }
+
+// const result = ch.run({
+// 	input: "hgsdf",
 // 	pos: { offset: 0, line: 0, column: 0 },
 // });
 
-// if (Either.isLeft(result)) {
-// 	console.log(result.left);
-// } else {
-// 	console.log(result.right);
-// }
+// console.log(result);
 
-const result = ch.run({
-	input: "hgsdf",
-	pos: { offset: 0, line: 0, column: 0 },
-});
+// // // import {
+// // // 	betweenChars,
+// // // 	char,
+// // // 	choice,
+// // // 	many,
+// // // 	sepBy,
+// // // } from "./combinators";
+// // // import { Parser } from "./parser";
 
-console.log(result);
-
-// // import {
-// // 	betweenChars,
-// // 	char,
-// // 	choice,
-// // 	many,
-// // 	sepBy,
-// // } from "./combinators";
-// // import { Parser } from "./parser";
-
-// const stringParser = betweenChars(
-// 	['"', '"'],
-// 	many(
-// 		choice([
-// 			char("\\")
-// 				.zip(char('"'))
-// 				.map(() => '"'),
-// 			new Parser((input) => {
-// 				const char = input[0];
-// 				if (char && char !== '"' && char !== "\\") {
-// 					return Either.right([char, input.slice(1)]);
-// 				}
-// 				return Either.left("Invalid character in string");
-// 			}),
-// 		]),
-// 	).map((chars) => chars.join("")),
-// );
-
-// // const stringParser2 = Parser.gen(function* ($) {
-// // 	yield* char('"');
-// // 	const chars = yield* many(
+// // const stringParser = betweenChars(
+// // 	['"', '"'],
+// // 	many(
 // // 		choice([
-// // 			Parser.gen(function* ($) {
-// // 				yield* char("\\");
-// // 				yield* char('"');
-// // 				return '"';
-// // 			}),
+// // 			char("\\")
+// // 				.zip(char('"'))
+// // 				.map(() => '"'),
 // // 			new Parser((input) => {
 // // 				const char = input[0];
 // // 				if (char && char !== '"' && char !== "\\") {
@@ -65,45 +55,65 @@ console.log(result);
 // // 				return Either.left("Invalid character in string");
 // // 			}),
 // // 		]),
-// // 	);
-// // 	yield* char('"');
-// // 	return chars.join("");
-// // });
-
-// // const result = sepBy(char(","), stringParser2, true).run(
-// // 	'"hi there","what"',
+// // 	).map((chars) => chars.join("")),
 // // );
 
-// // console.log(result);
-
-// // // Usage example:
-// // // const result = arrayParser.run('["hello", "world", "parser"]');
-// // // console.log(Either.isRight(result) ? result.right[0] : "Parse error");
-
-// // // const lol = many(choice([char("a"), char("b"), char("c")]));
-// // // const rip = lol.run("abc");
-
-// // // const smolParser = Parser.gen(function* () {
-// // // 	const hs = yield* many(char("h"));
-// // // 	const ts = yield* many(char("t"));
-// // // 	const v = yield* char("v");
-
-// // // 	return { hs, ts, v };
+// // // const stringParser2 = Parser.gen(function* ($) {
+// // // 	yield* char('"');
+// // // 	const chars = yield* many(
+// // // 		choice([
+// // // 			Parser.gen(function* ($) {
+// // // 				yield* char("\\");
+// // // 				yield* char('"');
+// // // 				return '"';
+// // // 			}),
+// // // 			new Parser((input) => {
+// // // 				const char = input[0];
+// // // 				if (char && char !== '"' && char !== "\\") {
+// // // 					return Either.right([char, input.slice(1)]);
+// // // 				}
+// // // 				return Either.left("Invalid character in string");
+// // // 			}),
+// // // 		]),
+// // // 	);
+// // // 	yield* char('"');
+// // // 	return chars.join("");
 // // // });
 
-// // // const parseTexoport = Parser.gen(function* () {
-// // // 	for (const i of "texoport") {
-// // // 		yield* char(i);
-// // // 	}
-// // // 	return "texoport acquired" as const;
-// // // });
+// // // const result = sepBy(char(","), stringParser2, true).run(
+// // // 	'"hi there","what"',
+// // // );
 
-// // // const bigParser = Parser.gen(function* () {
-// // // 	const smol = yield* smolParser;
-// // // 	const texStatus = yield* parseTexoport;
+// // // console.log(result);
 
-// // // 	return {
-// // // 		smol,
-// // // 		texStatus,
-// // // 	};
-// // // });
+// // // // Usage example:
+// // // // const result = arrayParser.run('["hello", "world", "parser"]');
+// // // // console.log(Either.isRight(result) ? result.right[0] : "Parse error");
+
+// // // // const lol = many(choice([char("a"), char("b"), char("c")]));
+// // // // const rip = lol.run("abc");
+
+// // // // const smolParser = Parser.gen(function* () {
+// // // // 	const hs = yield* many(char("h"));
+// // // // 	const ts = yield* many(char("t"));
+// // // // 	const v = yield* char("v");
+
+// // // // 	return { hs, ts, v };
+// // // // });
+
+// // // // const parseTexoport = Parser.gen(function* () {
+// // // // 	for (const i of "texoport") {
+// // // // 		yield* char(i);
+// // // // 	}
+// // // // 	return "texoport acquired" as const;
+// // // // });
+
+// // // // const bigParser = Parser.gen(function* () {
+// // // // 	const smol = yield* smolParser;
+// // // // 	const texStatus = yield* parseTexoport;
+
+// // // // 	return {
+// // // // 		smol,
+// // // // 		texStatus,
+// // // // 	};
+// // // // });

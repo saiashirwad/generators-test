@@ -20,27 +20,6 @@ export class ParserError {
 	) {}
 }
 
-// export function error(
-// 	message: string,
-// 	expected: string[],
-// 	pos: SourcePosition,
-// ) {
-// 	return Either.left(
-// 		new ParserError(message, expected, pos),
-// 	);
-// }
-
-// export function succeed<T>(
-// 	value: T,
-// 	state: ParserState,
-// 	consumed: string,
-// ): ParserResult<T> {
-// 	return Either.right([
-// 		value,
-// 		consumeString(state, consumed),
-// 	]);
-// }
-
 export type ParserResult<T> = Either.Either<
 	[T, ParserState],
 	ParserError
@@ -48,7 +27,7 @@ export type ParserResult<T> = Either.Either<
 
 export class Parser<Result> {
 	constructor(
-		public run: (
+		private _run: (
 			state: ParserState,
 		) => ParserResult<Result>,
 	) {}
@@ -74,9 +53,13 @@ export class Parser<Result> {
 		);
 	}
 
+	run(input: string): ParserResult<Result> {
+		return this._run(initialState(input));
+	}
+
 	map<B>(f: (a: Result) => B): Parser<B> {
 		return new Parser<B>((state) => {
-			return Either.match(this.run(state), {
+			return Either.match(this._run(state), {
 				onRight: ([value, newState]) =>
 					Either.right([f(value), newState] as const),
 				onLeft: Either.left,
@@ -91,7 +74,7 @@ export class Parser<Result> {
 		) => [B, ParserState],
 	): Parser<B> {
 		return new Parser<B>((state) => {
-			return Either.match(this.run(state), {
+			return Either.match(this._run(state), {
 				onRight: ([value, newState]) => {
 					const [newValue, transformedState] = f(
 						value,
@@ -109,10 +92,10 @@ export class Parser<Result> {
 
 	flatMap<B>(f: (a: Result) => Parser<B>): Parser<B> {
 		return new Parser<B>((state) => {
-			return Either.match(this.run(state), {
+			return Either.match(this._run(state), {
 				onRight: ([value, newState]) => {
 					const nextParser = f(value);
-					return nextParser.run(newState);
+					return nextParser._run(newState);
 				},
 				onLeft: Either.left,
 			});
@@ -129,9 +112,9 @@ export class Parser<Result> {
 
 	zip<B>(parserB: Parser<B>): Parser<readonly [Result, B]> {
 		return new Parser((state) =>
-			Either.match(this.run(state), {
+			Either.match(this._run(state), {
 				onRight: ([a, restA]) =>
-					Either.match(parserB.run(restA), {
+					Either.match(parserB._run(restA), {
 						onRight: ([b, restB]) =>
 							Either.right([[a, b] as const, restB]),
 						onLeft: Either.left,
@@ -152,11 +135,11 @@ export class Parser<Result> {
 		>
 	> {
 		return new Parser((state) => {
-			return Either.match(this.run(state), {
+			return Either.match(this._run(state), {
 				onRight: ([value, newState]) => {
 					const nextParser =
 						other instanceof Parser ? other : other(value);
-					return Either.match(nextParser.run(newState), {
+					return Either.match(nextParser._run(newState), {
 						onRight: ([b, finalState]) =>
 							Either.right([
 								{

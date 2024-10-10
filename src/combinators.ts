@@ -32,51 +32,49 @@ export function char(ch: string): Parser<string> {
 
 		const errorMessage =
 			`Expected ${ch} at index ${state.pos.offset}, ` +
-			`but found ${state.input.slice(
-				state.pos.offset,
-				state.pos.offset + 10,
-			)}...`;
+			`but found ${state.input.at(0)}...`;
 
 		return Parser.error(errorMessage, [ch], state.pos);
 	});
 }
 
-// export function char(ch: string): Parser<string> {
-// 	return new Parser((input) => {
-// 		if (ch.length !== 1) {
-// 			return Either.left(
-// 				"char parser expects a single character",
-// 			);
-// 		}
-// 		if (input[0] === ch) {
-// 			return Either.right([ch, input.slice(1)]);
-// 		}
-// 		return Either.left(`${ch} not matched!`);
-// 	});
-// }
+export const alphabet = new Parser((state) => {
+	if (state.input.length === 0) {
+		return Parser.error(
+			"Unexpected end of input",
+			[],
+			state.pos,
+		);
+	}
+	const first = state.input[0];
+	if (/^[a-zA-Z]$/.test(first)) {
+		return Parser.succeed(first, state, first);
+	}
+	return Parser.error(
+		`Expected alphabetic character, but got '${first}'`,
+		[],
+		state.pos,
+	);
+});
 
-// export const alphabet: Parser<string> = new Parser(
-// 	(input) => {
-// 		if (input.length === 0) {
-// 			return Either.left("Unexpected end of input");
-// 		}
-// 		const first = input[0];
-// 		if (/^[a-zA-Z]$/.test(first)) {
-// 			return Either.right([first, input.slice(1)]);
-// 		}
-// 		return Either.left(
-// 			`Expected alphabetic character, but got '${first}'`,
-// 		);
-// 	},
-// );
-
-// export const digit = new Parser((input) => {
-// 	const [first, ...rest] = input;
-// 	if (/^[0-9]$/.test(first)) {
-// 		return Either.right([first, rest.join("")]);
-// 	}
-// 	return Either.left("not a number");
-// });
+export const digit = new Parser((state) => {
+	if (state.input.length === 0) {
+		return Parser.error(
+			"Unexpected end of input",
+			[],
+			state.pos,
+		);
+	}
+	const first = state.input[0];
+	if (/^[0-9]$/.test(first)) {
+		return Parser.succeed(first, state, first);
+	}
+	return Parser.error(
+		`Expected digit, but got '${first}'`,
+		[],
+		state.pos,
+	);
+});
 
 // export const sepBy = <S, T>(
 // 	sepParser: Parser<S>,
