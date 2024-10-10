@@ -9,10 +9,7 @@ export function string(str: string): Parser<string> {
 
 		const errorMessage =
 			`Expected ${str} at index ${state.pos.offset}, ` +
-			`but found ${state.input.slice(
-				state.pos.offset,
-				state.pos.offset + 10,
-			)}...`;
+			`but found ${state.input.slice(state.pos.offset, state.pos.offset + 10)}...`;
 
 		return Parser.error(errorMessage, [str], state.pos);
 	});
@@ -87,21 +84,14 @@ export function sepBy<S, T>(
 				if (acc.length > 0) {
 					return acc;
 				}
-				return undefined;
+				return yield* Parser.fail(
+					"Unexpected end of input",
+				);
 			}
 			yield* optional(sepParser);
 			acc.push(result);
 		}
 	});
-	// .flatMap((x) => {
-	// 	if (x === undefined) {
-	// 		return Parser.error(
-	// 			"Expected separator",
-	// 			[],
-	// 			state.pos,
-	// 		);
-	// 	}
-	// });
 
 	// return new Parser((input) => {
 	// 	const acc: Array<T> = [];

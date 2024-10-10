@@ -43,6 +43,12 @@ export class Parser<Result> {
 		]);
 	}
 
+	static fail(message: string, expected: string[] = []) {
+		return new Parser((state) => {
+			return Parser.error(message, expected, state.pos);
+		});
+	}
+
 	static error(
 		message: string,
 		expected: string[],
@@ -190,11 +196,21 @@ export class Parser<Result> {
 				return value.flatMap((result) =>
 					run(iterator.next(result)),
 				);
-			} else {
-				throw new Error("Expected a Parser");
 			}
+			throw new Error("Expected a Parser");
 		}
+
 		return run(iterator.next());
+		// try {
+		// 	return run(iterator.next());
+		// } catch (error) {
+		// 	console.log("hi");
+		// 	//  return Parser.error(
+		// 	//   error instanceof Error ? error.message : String(error),
+		// 	//   [],
+		// 	//   state.pos
+		// 	// );
+		// }
 	}
 }
 
@@ -257,3 +273,9 @@ export function consumeString(
 		pos: newPos,
 	};
 }
+
+// export function fail(message: string, expected: string[]) {
+// 	return new Parser((state) => {
+// 		return Parser.error(message, expected, state.pos);
+// 	});
+// }
