@@ -1,6 +1,6 @@
 import { char, sepBy, string } from "./combinators";
 
-const something = sepBy(char(","), string("hi"));
+const something = sepBy(char(","), char("h"));
 const result = something.run("i,hi,hi,hi,asdf");
 
 console.log(result);

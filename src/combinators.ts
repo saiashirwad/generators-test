@@ -75,7 +75,7 @@ export const digit = new Parser((state) => {
 export function sepBy<S, T>(
 	sepParser: Parser<S>,
 	parser: Parser<T>,
-) {
+): Parser<T[]> {
 	return Parser.gen(function* () {
 		const acc: Array<T> = [];
 		while (true) {
@@ -91,69 +91,8 @@ export function sepBy<S, T>(
 			yield* optional(sepParser);
 			acc.push(result);
 		}
-	});
-
-	// return new Parser((input) => {
-	// 	const acc: Array<T> = [];
-	// 	let rest = input;
-	// 	while (true) {
-	// 		// const result = parser
-	// 		// 	.zip(
-	// 		// 		shouldTrimSpaces
-	// 		// 			? trimSpaces(optional(sepParser))
-	// 		// 			: optional(sepParser),
-	// 		// 	)
-	// 		// 	.run(rest);
-	// 		// if (Either.isLeft(result)) {
-	// 		// 	if (acc.length > 0) {
-	// 		// 		return Either.right([acc, rest]);
-	// 		// 	}
-	// 		// 	return Either.right([acc, input]); // Return original input if no match
-	// 		// }
-	// 		// const [[t, s], newRest] = result.right;
-	// 		// acc.push(t);
-	// 		// if (s === undefined) {
-	// 		// 	return Either.right([acc, newRest]);
-	// 		// }
-	// 		// rest = newRest;
-	// 	}
-	// });
+	}) as Parser<T[]>;
 }
-
-// export const sepBy = <S, T>(
-// 	sepParser: Parser<S>,
-// 	parser: Parser<T>,
-// 	shouldTrimSpaces?: boolean,
-// ): Parser<T[]> => {
-// 	return new Parser((input) => {
-// 		const acc: Array<T> = [];
-// 		let rest = input;
-// 		while (true) {
-// 			const result = parser
-// 				.zip(
-// 					shouldTrimSpaces
-// 						? trimSpaces(optional(sepParser))
-// 						: optional(sepParser),
-// 				)
-// 				.run(rest);
-
-// 			if (Either.isLeft(result)) {
-// 				if (acc.length > 0) {
-// 					return Either.right([acc, rest]);
-// 				}
-// 				return Either.right([acc, input]); // Return original input if no match
-// 			}
-// 			const [[t, s], newRest] = result.right;
-// 			acc.push(t);
-// 			if (s === undefined) {
-// 				return Either.right([acc, newRest]);
-// 			}
-// 			rest = newRest;
-// 		}
-// 	});
-// };
-
-// // FIX: the result is. why is there an escaped " just in world and not hello  [ "hello", ",\"world\"" ],
 
 // export const betweenChars = <T>(
 // 	[start, end]: [string, string],
