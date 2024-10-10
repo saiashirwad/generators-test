@@ -7,75 +7,75 @@ export type SourcePosition = {
 	offset: number;
 };
 
-export type ParserState<T = unknown> = {
+export type ParserState = {
 	input: string;
 	pos: SourcePosition;
-	state: T;
 };
 
-export type ParserError = {
-	message: string;
-	expected: string[];
-	pos: SourcePosition;
-};
+export class ParserError {
+	constructor(
+		public message: string,
+		public expected: string[],
+		public pos: SourcePosition,
+	) {}
+}
 
-export type ParserResult<T, S = unknown> = Either.Either<
-	[T, ParserState<S>],
+// export function error(
+// 	message: string,
+// 	expected: string[],
+// 	pos: SourcePosition,
+// ) {
+// 	return Either.left(
+// 		new ParserError(message, expected, pos),
+// 	);
+// }
+
+// export function succeed<T>(
+// 	value: T,
+// 	state: ParserState,
+// 	consumed: string,
+// ): ParserResult<T> {
+// 	return Either.right([
+// 		value,
+// 		consumeString(state, consumed),
+// 	]);
+// }
+
+export type ParserResult<T> = Either.Either<
+	[T, ParserState],
 	ParserError
 >;
 
-export function initialState<State = unknown>(
-	input: string,
-	state: State,
-): ParserState {
-	return {
-		input,
-		pos: { line: 1, column: 1, offset: 0 },
-		state,
-	};
-}
-
-export function updatePosition(
-	pos: SourcePosition,
-	consumed: string,
-): SourcePosition {
-	let { line, column, offset } = pos;
-	for (const char of consumed) {
-		if (char === "\n") {
-			line++;
-			column = 1;
-		} else {
-			column++;
-		}
-		offset++;
-	}
-	return { line, column, offset };
-}
-
-export function updateState<State>(
-	oldState: ParserState<State>,
-	newState: ParserState<State>,
-): ParserState<State> {
-	const consumed = oldState.input.slice(
-		0,
-		oldState.input.length - newState.input.length,
-	);
-	return {
-		...oldState,
-		input: oldState.input.slice(consumed.length),
-		pos: updatePosition(oldState.pos, consumed),
-	};
-}
-
-export class Parser<Result, State = unknown> {
+export class Parser<Result> {
 	constructor(
 		public run: (
-			state: ParserState<State>,
-		) => ParserResult<Result, State>,
+			state: ParserState,
+		) => ParserResult<Result>,
 	) {}
 
-	map<B>(f: (a: Result) => B): Parser<B, State> {
-		return new Parser<B, State>((state) => {
+	static succeed<T>(
+		value: T,
+		state: ParserState,
+		consumed: string,
+	): ParserResult<T> {
+		return Either.right([
+			value,
+			consumeString(state, consumed),
+		]);
+	}
+
+	static error(
+		message: string,
+		expected: string[],
+		pos: SourcePosition,
+	) {
+		return Either.left(
+			new ParserError(message, expected, pos),
+		);
+	}
+
+	map<B>(f: (a: Result) => B): Parser<B> {
+		return new Parser<B>((state) => {
 			return Either.match(this.run(state), {
 				onRight: ([value, newState]) =>
 					Either.right([f(value), newState] as const),
@@ -87,10 +87,10 @@ export class Parser<Result, State = unknown> {
 	transform<B>(
 		f: (
 			value: Result,
-			state: ParserState<State>,
-		) => [B, ParserState<State>],
-	): Parser<B, State> {
-		return new Parser<B, State>((state) => {
+			state: ParserState,
+		) => [B, ParserState],
+	): Parser<B> {
+		return new Parser<B>((state) => {
 			return Either.match(this.run(state), {
 				onRight: ([value, newState]) => {
 					const [newValue, transformedState] = f(
@@ -107,10 +107,8 @@ export class Parser<Result, State = unknown> {
 		});
 	}
 
-	flatMap<B>(
-		f: (a: Result) => Parser<B, State>,
-	): Parser<B, State> {
-		return new Parser<B, State>((state) => {
+	flatMap<B>(f: (a: Result) => Parser<B>): Parser<B> {
+		return new Parser<B>((state) => {
 			return Either.match(this.run(state), {
 				onRight: ([value, newState]) => {
 					const nextParser = f(value);
@@ -129,9 +127,7 @@ export class Parser<Result, State = unknown> {
 		return Parser.pure({});
 	};
 
-	zip<B>(
-		parserB: Parser<B, State>,
-	): Parser<readonly [Result, B], State> {
+	zip<B>(parserB: Parser<B>): Parser<readonly [Result, B]> {
 		return new Parser((state) =>
 			Either.match(this.run(state), {
 				onRight: ([a, restA]) =>
@@ -147,10 +143,14 @@ export class Parser<Result, State = unknown> {
 
 	bind<K extends string, B>(
 		k: K,
-		other:
-			| Parser<B, State>
-			| ((a: Result) => Parser<B, State>),
-	): Parser<Prettify<Result & { [k in K]: B }>, State> {
+		other: Parser<B> | ((a: Result) => Parser<B>),
+	): Parser<
+		Prettify<
+			Result & {
+				[k in K]: B;
+			}
+		>
+	> {
 		return new Parser((state) => {
 			return Either.match(this.run(state), {
 				onRight: ([value, newState]) => {
@@ -162,7 +162,11 @@ export class Parser<Result, State = unknown> {
 								{
 									...(value as object),
 									[k]: b,
-								} as Prettify<Result & { [k in K]: B }>,
+								} as Prettify<
+									Result & {
+										[k in K]: B;
+									}
+								>,
 								finalState,
 							] as const),
 						onLeft: Either.left,
@@ -174,7 +178,7 @@ export class Parser<Result, State = unknown> {
 	}
 
 	*[Symbol.iterator](): Generator<
-		Parser<Result, State>,
+		Parser<Result>,
 		Result,
 		any
 	> {
@@ -209,4 +213,64 @@ export class Parser<Result, State = unknown> {
 		}
 		return run(iterator.next());
 	}
+}
+
+export function initialState(input: string): ParserState {
+	return {
+		input,
+		pos: {
+			line: 1,
+			column: 1,
+			offset: 0,
+		},
+	};
+}
+
+export function updatePosition(
+	pos: SourcePosition,
+	consumed: string,
+): SourcePosition {
+	let { line, column, offset } = pos;
+	for (const char of consumed) {
+		if (char === "\n") {
+			line++;
+			column = 1;
+		} else {
+			column++;
+		}
+		offset++;
+	}
+
+	return {
+		line,
+		column,
+		offset,
+	};
+}
+
+export function updateState(
+	oldState: ParserState,
+	newState: ParserState,
+): ParserState {
+	const consumed = oldState.input.slice(
+		0,
+		oldState.input.length - newState.input.length,
+	);
+	return {
+		...oldState,
+		input: oldState.input.slice(consumed.length),
+		pos: updatePosition(oldState.pos, consumed),
+	};
+}
+
+export function consumeString(
+	state: ParserState,
+	consumed: string,
+): ParserState {
+	const newPos = updatePosition(state.pos, consumed);
+
+	return {
+		input: state.input.slice(consumed.length),
+		pos: newPos,
+	};
 }
