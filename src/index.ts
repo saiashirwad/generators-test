@@ -1,18 +1,21 @@
-import { char } from "./combinators";
-import { Parser } from "./parser";
+import { integer } from "./lexer";
 
-const parser = Parser.Do()
-	.bind("a", char("a"))
-	.bind("b", char("b"))
-	.map((x) => [x.a, x.b] as const);
+// const parser = Parser.gen(function* () {
+// 	const a = yield* char("a");
+// 	const b = yield* char("b");
+// 	return [a, b] as const;
+// });
 
-const parser2 = Parser.gen(function* () {
-	const a = yield* char("a");
-	const b = yield* char("b");
-	return [a, b] as const;
-});
+// const result1 = parser.run("ba");
 
-const result1 = parser.run("ab");
-const result2 = parser2.run("ab");
+// if (Either.isLeft(result1)) {
+// 	console.log(result1.left);
+// } else {
+// 	console.log(result1.right);
+// }
 
-console.log(result1, result2);
+const parser = integer;
+
+const result = parser.run("-a123");
+
+console.log(result);

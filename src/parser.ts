@@ -28,6 +28,8 @@ export type ParserResult<T> = Either.Either<
 >;
 
 export class Parser<Result> {
+	errorMessage = "";
+
 	constructor(
 		private _run: (
 			state: ParserState,
@@ -63,6 +65,11 @@ export class Parser<Result> {
 		return Either.left(
 			new ParserError(message, expected, pos),
 		);
+	}
+
+	error(message: string): this {
+		this.errorMessage = message;
+		return this;
 	}
 
 	run(input: string): ParserResult<Result> {
@@ -157,7 +164,11 @@ export class Parser<Result> {
 								{
 									...(value as object),
 									[k]: b,
-								} as Prettify<Result & { [k in K]: B }>,
+								} as Prettify<
+									Result & {
+										[k in K]: B;
+									}
+								>,
 								finalState,
 							] as const),
 						onLeft: Either.left,
