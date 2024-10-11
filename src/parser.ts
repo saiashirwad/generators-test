@@ -157,11 +157,7 @@ export class Parser<Result> {
 								{
 									...(value as object),
 									[k]: b,
-								} as Prettify<
-									Result & {
-										[k in K]: B;
-									}
-								>,
+								} as Prettify<Result & { [k in K]: B }>,
 								finalState,
 							] as const),
 						onLeft: Either.left,

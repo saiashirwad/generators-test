@@ -4,12 +4,12 @@ import { Parser } from "./parser";
 const parser = Parser.Do()
 	.bind("a", char("a"))
 	.bind("b", char("b"))
-	.map((x) => [x.a, x.b]);
+	.map((x) => [x.a, x.b] as const);
 
 const parser2 = Parser.gen(function* () {
 	const a = yield* char("a");
 	const b = yield* char("b");
-	return [a, b];
+	return [a, b] as const;
 });
 
 const result1 = parser.run("ab");

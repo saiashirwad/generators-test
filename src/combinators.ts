@@ -18,7 +18,7 @@ export function string(str: string): Parser<string> {
 	);
 }
 
-export function char(ch: string): Parser<string> {
+export function char<T extends string>(ch: T): Parser<T> {
 	return new Parser(
 		(state) => {
 			if (ch.length !== 1) {
@@ -208,7 +208,9 @@ export function choice<T>(
 
 		return yield* Parser.fail(
 			`None of the ${parsers.length} choices could be satisfied`,
-			parsers.map((p) => p.options?.name ?? ""),
+			parsers
+				.filter((x) => x.options?.name != null)
+				.map((p) => p.options?.name ?? ""),
 		);
 	}) as Parser<T>;
 }
