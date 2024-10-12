@@ -100,11 +100,10 @@ export function sepBy<S, T>(
 					"Unexpected end of input",
 				);
 			}
+			acc.push(result);
 			const sep = yield* optional(sepParser);
-			if (sep) {
-				acc.push(result);
-			} else {
-				return [...acc, result];
+			if (!sep) {
+				return acc;
 			}
 		}
 	}) as Parser<T[]>;
