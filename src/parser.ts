@@ -1,32 +1,161 @@
 import { Either } from "effect";
 import { type Prettify } from "./utils";
 
+export type SourcePosition = {
+	line: number;
+	column: number;
+	offset: number;
+};
+
+export type ParserState = {
+	input: string;
+	pos: SourcePosition;
+};
+
+type ParserOptions = { name?: string };
+
+export class ParserError {
+	constructor(
+		public message: string,
+		public expected: string[],
+		public pos: SourcePosition,
+	) {}
+}
+
 export type ParserResult<T> = Either.Either<
-	[T, string],
-	string
+	[T, ParserState],
+	ParserError
 >;
 
-export class Parser<A> {
+export class Parser<Result> {
+	private errorMessage: string | null = null;
+
 	constructor(
-		public run: (input: string) => ParserResult<A>,
+		private _run: (
+			state: ParserState,
+		) => ParserResult<Result>,
+		public options?: ParserOptions,
 	) {}
 
-	map<B>(f: (a: A) => B): Parser<B> {
-		return new Parser((input) =>
-			Either.match(this.run(input), {
-				onRight: ([a, rest]) => Either.right([f(a), rest]),
-				onLeft: (e) => Either.left(e),
-			}),
+	static succeed<T>(
+		value: T,
+		state: ParserState,
+		consumed?: string,
+	): ParserResult<T> {
+		return Either.right([
+			value,
+			consumeString(state, consumed),
+		]);
+	}
+
+	static fail(
+		message: string,
+		expected: string[] = [],
+	): Parser<unknown> {
+		return new Parser<unknown>((state) => {
+			return Parser.error(message, expected, state.pos);
+		});
+	}
+
+	static error(
+		message: string,
+		expected: string[],
+		pos: SourcePosition,
+	) {
+		return Either.left(
+			new ParserError(message, expected, pos),
 		);
 	}
 
-	flatMap<B>(f: (a: A) => Parser<B>): Parser<B> {
-		return new Parser((input) => {
-			return Either.match(this.run(input), {
-				onRight: ([a, rest]) => f(a).run(rest),
-				onLeft: (e) => Either.left(e),
+	error(message: string): Parser<Result> {
+		return new Parser<Result>((state) => {
+			const result = this._run(state);
+			if (Either.isLeft(result)) {
+				return Parser.error(
+					message,
+					result.left.expected,
+					result.left.pos,
+				);
+			}
+			return result;
+		}, this.options);
+	}
+
+	run(input: string): ParserResult<Result> {
+		const result = this._run(initialState(input));
+		if (Either.isRight(result)) {
+			return result;
+		}
+		if (this.errorMessage) {
+			console.log(this);
+			return Parser.error(
+				this.errorMessage,
+				result.left.expected,
+				result.left.pos,
+			);
+		}
+		return result;
+	}
+
+	map<B>(f: (a: Result) => B): Parser<B> {
+		return new Parser<B>((state) => {
+			const result = this._run(state);
+			if (Either.isLeft(result) && this.errorMessage) {
+				return Parser.error(
+					this.errorMessage,
+					result.left.expected,
+					result.left.pos,
+				);
+			}
+			return Either.match(result, {
+				onRight: ([value, newState]) =>
+					Either.right([f(value), newState] as const),
+				onLeft: Either.left,
 			});
-		});
+		}, this.options);
+	}
+
+	// transform<B>(
+	// 	f: (
+	// 		value: Result,
+	// 		state: ParserState,
+	// 	) => [B, ParserState],
+	// ): Parser<B> {
+	// 	return new Parser<B>((state) => {
+	// 		return Either.match(this._run(state), {
+	// 			onRight: ([value, newState]) => {
+	// 				const [newValue, transformedState] = f(
+	// 					value,
+	// 					newState,
+	// 				);
+	// 				return Either.right([
+	// 					newValue,
+	// 					updateState(newState, transformedState),
+	// 				] as const);
+	// 			},
+	// 			onLeft: Either.left,
+	// 		});
+	// 	});
+	// }
+
+	flatMap<B>(f: (a: Result) => Parser<B>): Parser<B> {
+		return new Parser<B>((state) => {
+			const result = this._run(state);
+			if (Either.isLeft(result) && this.errorMessage) {
+				return Parser.error(
+					this.errorMessage,
+					result.left.expected,
+					result.left.pos,
+				);
+			}
+			return Either.match(result, {
+				onRight: ([value, newState]) => {
+					const nextParser = f(value);
+					return nextParser._run(newState);
+				},
+				onLeft: Either.left,
+			});
+		}, this.options);
 	}
 
 	static pure = <A>(a: A): Parser<A> => {
@@ -37,38 +166,69 @@ export class Parser<A> {
 		return Parser.pure({});
 	};
 
-	zip<B>(parserB: Parser<B>): Parser<readonly [A, B]> {
-		return new Parser((input) =>
-			Either.match(this.run(input), {
-				onRight: ([a, rest]) =>
-					Either.match(parserB.run(rest), {
-						onLeft: (e) => Either.left(e),
-						onRight: ([b, rest]) =>
-							Either.right([[a, b], rest]),
+	zip<B>(parserB: Parser<B>): Parser<readonly [Result, B]> {
+		return new Parser((state) =>
+			Either.match(this._run(state), {
+				onRight: ([a, restA]) =>
+					Either.match(parserB._run(restA), {
+						onRight: ([b, restB]) =>
+							Either.right([[a, b] as const, restB]),
+						onLeft: Either.left,
 					}),
-				onLeft: (e) => Either.left(e),
+				onLeft: Either.left,
 			}),
 		);
 	}
 
 	bind<K extends string, B>(
 		k: K,
-		other: Parser<B> | ((a: A) => Parser<B>),
-	): Parser<Prettify<A & { [k in K]: B }>> {
-		return this.flatMap((a) => {
-			const parser =
-				other instanceof Parser ? other : other(a);
-			return parser.flatMap((b) =>
-				Parser.pure(
-					Object.assign({}, a, {
-						[k.toString()]: b,
-					}) as any,
-				),
-			);
-		});
+		other: Parser<B> | ((a: Result) => Parser<B>),
+	): Parser<
+		Prettify<
+			Result & {
+				[k in K]: B;
+			}
+		>
+	> {
+		return new Parser((state) => {
+			const result = this._run(state);
+			if (Either.isLeft(result) && this.errorMessage) {
+				return Parser.error(
+					this.errorMessage,
+					result.left.expected,
+					result.left.pos,
+				);
+			}
+			return Either.match(result, {
+				onRight: ([value, newState]) => {
+					const nextParser =
+						other instanceof Parser ? other : other(value);
+					return Either.match(nextParser._run(newState), {
+						onRight: ([b, finalState]) =>
+							Either.right([
+								{
+									...(value as object),
+									[k]: b,
+								} as Prettify<
+									Result & {
+										[k in K]: B;
+									}
+								>,
+								finalState,
+							] as const),
+						onLeft: Either.left,
+					});
+				},
+				onLeft: Either.left,
+			});
+		}, this.options);
 	}
 
-	*[Symbol.iterator](): Generator<Parser<A>, A, any> {
+	*[Symbol.iterator](): Generator<
+		Parser<Result>,
+		Result,
+		any
+	> {
 		return yield this;
 	}
 
@@ -78,7 +238,6 @@ export class Parser<A> {
 		}) => Generator<Yielded, Returned, any>,
 	): Parser<Returned> {
 		const iterator = f((_: any) => new Parser(_));
-
 		function run(
 			state:
 				| IteratorYieldResult<Yielded>
@@ -90,17 +249,75 @@ export class Parser<A> {
 				}
 				return Parser.pure(state.value as Returned);
 			}
-
 			const value = state.value;
 			if (value instanceof Parser) {
 				return value.flatMap((result) =>
 					run(iterator.next(result)),
 				);
-			} else {
-				throw new Error("Expected a Parser");
 			}
+			throw new Error("Expected a Parser");
 		}
 
 		return run(iterator.next());
 	}
+}
+
+export function initialState(input: string): ParserState {
+	return {
+		input,
+		pos: {
+			line: 1,
+			column: 1,
+			offset: 0,
+		},
+	};
+}
+
+export function updatePosition(
+	pos: SourcePosition,
+	consumed: string,
+): SourcePosition {
+	let { line, column, offset } = pos;
+	for (const char of consumed) {
+		if (char === "\n") {
+			line++;
+			column = 1;
+		} else {
+			column++;
+		}
+		offset++;
+	}
+
+	return {
+		line,
+		column,
+		offset,
+	};
+}
+
+export function updateState(
+	oldState: ParserState,
+	newState: ParserState,
+): ParserState {
+	const consumed = oldState.input.slice(
+		0,
+		oldState.input.length - newState.input.length,
+	);
+	return {
+		...oldState,
+		input: oldState.input.slice(consumed.length),
+		pos: updatePosition(oldState.pos, consumed),
+	};
+}
+
+export function consumeString(
+	state: ParserState,
+	consumed?: string,
+): ParserState {
+	const newPos = updatePosition(state.pos, consumed ?? "");
+
+	return {
+		input: state.input.slice(consumed?.length ?? 0),
+		pos: newPos,
+	};
 }
