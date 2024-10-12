@@ -1,4 +1,4 @@
-import { integer } from "./lexer";
+import { integer2 } from "./lexer";
 
 // const parser = Parser.gen(function* () {
 // 	const a = yield* char("a");
@@ -14,8 +14,8 @@ import { integer } from "./lexer";
 // 	console.log(result1.right);
 // }
 
-const parser = integer;
+const parser = integer2;
 
-const result = parser.run("-a123");
+const result = parser.run("-1");
 
 console.log(result);

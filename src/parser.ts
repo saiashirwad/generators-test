@@ -28,7 +28,7 @@ export type ParserResult<T> = Either.Either<
 >;
 
 export class Parser<Result> {
-	errorMessage = "";
+	private errorMessage: string | null = null;
 
 	constructor(
 		private _run: (
@@ -67,23 +67,52 @@ export class Parser<Result> {
 		);
 	}
 
-	error(message: string): this {
-		this.errorMessage = message;
-		return this;
+	error(message: string): Parser<Result> {
+		return new Parser<Result>((state) => {
+			const result = this._run(state);
+			if (Either.isLeft(result)) {
+				return Parser.error(
+					message,
+					result.left.expected,
+					result.left.pos,
+				);
+			}
+			return result;
+		}, this.options);
 	}
 
 	run(input: string): ParserResult<Result> {
-		return this._run(initialState(input));
+		const result = this._run(initialState(input));
+		if (Either.isRight(result)) {
+			return result;
+		}
+		if (this.errorMessage) {
+			console.log(this);
+			return Parser.error(
+				this.errorMessage,
+				result.left.expected,
+				result.left.pos,
+			);
+		}
+		return result;
 	}
 
 	map<B>(f: (a: Result) => B): Parser<B> {
 		return new Parser<B>((state) => {
-			return Either.match(this._run(state), {
+			const result = this._run(state);
+			if (Either.isLeft(result) && this.errorMessage) {
+				return Parser.error(
+					this.errorMessage,
+					result.left.expected,
+					result.left.pos,
+				);
+			}
+			return Either.match(result, {
 				onRight: ([value, newState]) =>
 					Either.right([f(value), newState] as const),
 				onLeft: Either.left,
 			});
-		});
+		}, this.options);
 	}
 
 	// transform<B>(
@@ -111,14 +140,22 @@ export class Parser<Result> {
 
 	flatMap<B>(f: (a: Result) => Parser<B>): Parser<B> {
 		return new Parser<B>((state) => {
-			return Either.match(this._run(state), {
+			const result = this._run(state);
+			if (Either.isLeft(result) && this.errorMessage) {
+				return Parser.error(
+					this.errorMessage,
+					result.left.expected,
+					result.left.pos,
+				);
+			}
+			return Either.match(result, {
 				onRight: ([value, newState]) => {
 					const nextParser = f(value);
 					return nextParser._run(newState);
 				},
 				onLeft: Either.left,
 			});
-		});
+		}, this.options);
 	}
 
 	static pure = <A>(a: A): Parser<A> => {
@@ -154,7 +191,15 @@ export class Parser<Result> {
 		>
 	> {
 		return new Parser((state) => {
-			return Either.match(this._run(state), {
+			const result = this._run(state);
+			if (Either.isLeft(result) && this.errorMessage) {
+				return Parser.error(
+					this.errorMessage,
+					result.left.expected,
+					result.left.pos,
+				);
+			}
+			return Either.match(result, {
 				onRight: ([value, newState]) => {
 					const nextParser =
 						other instanceof Parser ? other : other(value);
@@ -176,7 +221,7 @@ export class Parser<Result> {
 				},
 				onLeft: Either.left,
 			});
-		});
+		}, this.options);
 	}
 
 	*[Symbol.iterator](): Generator<

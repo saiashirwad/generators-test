@@ -3,6 +3,7 @@ import {
 	choice,
 	digit,
 	many1,
+	manyN,
 	optional,
 } from "./combinators";
 import { Parser } from "./parser";
@@ -18,12 +19,12 @@ export function skipWhitespace(): Parser<undefined> {
 	});
 }
 
-export const integer: Parser<number> = Parser.gen(
+export const integer2: Parser<number> = Parser.gen(
 	function* () {
 		const sign = yield* optional(char("-"));
-		const digits = yield* many1(
-			digit.error("I wanted a digit, lmao"),
-		).error("No digits found");
+		const digits = yield* manyN(digit, 2).error(
+			"WUT, i need 2 digits, minimum",
+		);
 		const numStr = (sign ?? "") + digits.join("");
 		return parseInt(numStr, 10);
 	},
